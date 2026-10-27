@@ -1,1 +1,514 @@
-hi
+<meta charset="utf-8">
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Didact+Gothic&family=Fresca&family=McLaren&display=swap");
+
+  :root {
+    --bg: #cfe1ad;          /* soft green */
+    --pill: #dedbe2;        /* lilac: menu and cloud */
+    --lilac-light: #ece9f1;  /* blob gradient: light */
+    --lilac-deep: #c9c1d8;   /* blob gradient: deep */
+    --blob: #3d0a22;        /* plum: active / hover */
+    --ink: #3d0a22;         /* plum text */
+    --ink-on-blob: #fff8e6; /* text on the blob */
+    --speed: 0.6s;
+    --pull: 1.1rem;       /* how far a hovered item separates sideways */
+    --drop: 0.9rem;       /* how far it drops down */
+    --drip: 1.6rem;
+    --footer-speed: 0.9s;  /* footer hover: slower = smoother */
+    --smooth: cubic-bezier(.22, 1, .36, 1);  /* gentle ease-out, no overshoot */       /* how far a footer droplet drips down on hover */
+    --bounce: cubic-bezier(.34, 1.56, .64, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Didact Gothic", sans-serif;
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.28'/%3E%3C/svg%3E");
+    background-blend-mode: multiply;
+  }
+
+  /* ---------- The menu bar ---------- */
+  .site-header {
+    position: fixed;
+    top: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+
+  /* Everything inside .goo gets the liquid filter, so shapes that touch melt together */
+  .goo {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;              /* menu and search sit apart; goo pulls toward each other */
+    filter: url(#goo);
+  }
+
+  .menu {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 2px;                 /* tiny gap: at rest the goo melts the pills into one bar */
+  }
+
+  .menu li {
+    margin: 0;
+    transition: margin var(--speed) var(--bounce);
+  }
+
+  /* Each menu item is its own droplet */
+  .menu a {
+    display: block;
+    padding: 0.85rem 1.4rem;
+    font-family: "Fresca", sans-serif;
+    font-size: 1.25rem;
+    color: var(--ink);
+    text-decoration: none;
+    background: var(--pill);
+    border-radius: 999px;
+    transition: transform var(--speed) var(--bounce),
+                background-color 0.25s,
+                color 0.25s;
+  }
+
+  /* HOVER: the item pulls away from its neighbors, drops down and swells.
+     While it moves, the goo stretches a "neck" between it and the bar until it snaps. */
+  .menu li:hover,
+  .menu li:focus-within {
+    margin: 0 var(--pull);
+  }
+  .menu li:hover a,
+  .menu li:focus-within a {
+    transform: translateY(var(--drop)) scale(1.12);
+    background: var(--blob);
+    color: var(--ink-on-blob);
+  }
+
+  /* Current page: stays a separate droplet */
+  .menu a[aria-current="page"] {
+    background: var(--blob);
+    color: var(--ink-on-blob);
+  }
+  .menu li:has(a[aria-current="page"]) { margin: 0 0.9rem; }
+
+  /* ---------- Search: a circle that stretches into a field ---------- */
+  .search {
+    display: flex;
+    align-items: center;
+    height: 3.4rem;
+    width: 3.4rem;
+    background: var(--pill);
+    border-radius: 999px;
+    overflow: hidden;
+    transition: width var(--speed) var(--bounce),
+                transform var(--speed) var(--bounce);
+  }
+
+  .search:hover:not(.is-open) { transform: translateX(0.6rem) scale(1.1); }
+  .search.is-open { width: 16rem; transform: translateX(1rem); }
+
+  .search button {
+    flex: 0 0 3.4rem;
+    height: 3.4rem;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+  }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.05rem;
+    color: var(--ink);
+    padding-right: 1rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .search.is-open input { opacity: 1; }
+  .search input:focus { outline: none; }
+  .search input::placeholder { color: #6b6f8f; }
+
+  /* Keyboard focus that stays visible */
+  .menu a:focus-visible,
+  .search button:focus-visible {
+    outline: 3px dashed var(--ink);
+    outline-offset: 4px;
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+
+  /* ---------- Home ---------- */
+  .home {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1rem 4rem;
+    text-align: left;
+    overflow-x: clip;         /* the wobbling blob never causes sideways scroll */
+  }
+
+  .intro {
+    position: relative;
+    padding: 4.5rem 6rem;
+    margin-bottom: 3rem;
+  }
+
+  /* The lilac blob behind the name: soft gradient + shine like the project
+     bubbles, a gentle shadow, and a slow wobble. */
+  .blob-goo {
+    position: absolute;
+    inset: -0.5rem -1rem;
+    z-index: -1;
+    filter: drop-shadow(0 1.5rem 2rem rgba(61, 10, 34, 0.16));
+  }
+  .blob-shape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    animation: wobble 9s ease-in-out infinite alternate;
+    transform-origin: 50% 50%;
+  }
+  @keyframes wobble {
+    0%   { transform: rotate(-1.2deg) scale(1, 1); }
+    50%  { transform: rotate(0.8deg) scale(1.02, 0.98); }
+    100% { transform: rotate(-0.4deg) scale(0.99, 1.02); }
+  }
+
+  /* Name: a little tilt and a slow float so it feels hand-placed, not stiff */
+  .intro h1 {
+    font-family: "McLaren", sans-serif;
+    font-weight: 400;
+    font-size: clamp(3rem, 9vw, 6.25rem);
+    line-height: 1;
+    color: var(--ink);
+    margin: 0 0 1.6rem;       /* more breathing room above the title */
+    rotate: -3deg;
+    animation: float 7s ease-in-out infinite alternate;
+  }
+  @keyframes float {
+    from { translate: 0 0; }
+    to   { translate: 0 -0.35rem; }
+  }
+
+  /* Title: each line set at its own slight angle and offset */
+  .intro .title {
+    font-family: "Fresca", sans-serif;
+    font-size: clamp(1.4rem, 3.2vw, 2.4rem);
+    line-height: 1.3;
+    color: var(--ink);
+    margin: 0;
+  }
+  .intro .title span { display: block; }
+  .intro .title span:first-child { rotate: 1.2deg; margin-left: 0.4rem; }
+  .intro .title span:last-child  { rotate: -1deg;  margin-left: 2rem; }
+
+  /* Handwritten notes */
+  .note {
+    position: absolute;
+    font-family: "Fresca", sans-serif;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .note.hi {
+    top: -1.5rem;
+    left: -2.5rem;
+    font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+    rotate: 14deg;
+  }
+  .note.welcome {
+    right: -2rem;
+    bottom: -3.25rem;
+    font-size: clamp(1.2rem, 2.6vw, 1.9rem);
+    line-height: 1.15;
+    text-align: center;
+    rotate: -8deg;
+  }
+
+  /* ---------- Page circles ---------- */
+  .page-bubbles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.75rem;
+    list-style: none;
+    margin: 3rem 0 0;
+    padding: 0;
+  }
+  .page-bubbles li:nth-child(even) { margin-top: 2.5rem; }   /* gentle up-down rhythm */
+
+  .page-bubbles a {
+    width: clamp(8.5rem, 15vw, 11rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: grid;
+    place-content: center;
+    gap: 0.15rem;
+    text-align: center;
+    text-decoration: none;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.45), transparent 45%),
+      linear-gradient(145deg, var(--a), var(--b));
+
+    /* hidden until the pop-in */
+    opacity: 0;
+    scale: 0.3;
+    transition: scale 0.7s cubic-bezier(.34, 1.56, .64, 1),
+                opacity 0.4s ease,
+                box-shadow 0.5s var(--smooth);
+  }
+  .page-bubbles.is-in a { opacity: 1; scale: 1; }
+  /* stagger: each circle pops a little after the last */
+  .page-bubbles.is-in li:nth-child(1) a { transition-delay: 0s, 0s, 0s; }
+  .page-bubbles.is-in li:nth-child(2) a { transition-delay: 0.12s, 0.12s, 0s; }
+  .page-bubbles.is-in li:nth-child(3) a { transition-delay: 0.24s, 0.24s, 0s; }
+  .page-bubbles.is-in li:nth-child(4) a { transition-delay: 0.36s, 0.36s, 0s; }
+
+  .page-bubbles .name {
+    font-family: "McLaren", sans-serif;
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  }
+  .page-bubbles .sub {
+    font-family: "Fresca", sans-serif;
+    font-size: 1.05rem;
+  }
+
+  /* Hover: swell and lift with a soft shadow */
+  .page-bubbles.is-in a:hover,
+  .page-bubbles.is-in a:focus-visible {
+    scale: 1.08;
+    box-shadow: 0 1.25rem 2.25rem -0.75rem rgba(61, 10, 34, 0.3);
+    transition-delay: 0s;
+  }
+  .page-bubbles a:focus-visible { outline: 3px dashed var(--ink); outline-offset: 6px; }
+
+  @media (max-width: 700px) {
+    .intro { padding: 3rem 2.25rem; }
+    .intro .title { font-size: 1.3rem; }
+    .intro .title span:last-child { margin-left: 0.9rem; }
+    .note.hi { left: -0.5rem; top: -1.75rem; }
+    .note.welcome { right: 0; bottom: -3rem; }
+    .page-bubbles { gap: 1rem; }
+    .page-bubbles li:nth-child(even) { margin-top: 1.5rem; }
+  }
+
+  /* ---------- Footer: droplet links sitting on a blobby cloud that runs to the page bottom ---------- */
+  .site-footer {
+    margin-top: 6rem;
+    padding-top: 3rem;        /* headroom for links rising on hover */
+    overflow: hidden;         /* hides the extra-wide cloud edges */
+    text-align: center;
+  }
+
+  /* Links + cloud share one goo filter so the links melt into the lumps */
+  .footer-goo {
+    margin: 0 -3rem;          /* wider than the page so the goo never rounds the side edges */
+    filter: url(#goo);
+  }
+
+  /* Droplet links riding the top of the cloud */
+  .footer-links {
+    position: relative;
+    z-index: 1;               /* painted above the cloud */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.6rem;
+    list-style: none;
+    margin: 0 0 -0.4rem;      /* links sit on top of their lumps */
+    padding: 0 4rem;
+  }
+
+  /* Each link perches on its own lump of cloud */
+  .footer-links li { position: relative; }
+  .footer-links li::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 92%;                 /* lump sits just under the link, so the link perches on it */
+    width: 105%;
+    height: 4rem;
+    transform: translateX(-50%);
+    background: var(--pill);
+    border-radius: 50%;
+    z-index: -1;
+  }
+
+  .footer-links a {
+    position: relative;
+    display: block;
+    padding: 0.75rem 1.3rem;
+    font-family: "Fresca", sans-serif;
+    font-size: 1.15rem;
+    color: var(--ink);
+    text-decoration: none;
+    background: var(--pill);
+    border-radius: 999px;
+    will-change: transform;
+    transition: transform var(--footer-speed) var(--smooth),
+                background-color calc(var(--footer-speed) * 0.7) ease,
+                color calc(var(--footer-speed) * 0.7) ease;
+  }
+
+  /* HOVER: the droplet rises off the cloud and swells; the goo stretches a neck back down */
+  .footer-links a:hover,
+  .footer-links a:focus-visible {
+    transform: translateY(calc(var(--drip) * -1)) scale(1.08);
+    background: var(--blob);
+    color: var(--ink-on-blob);
+  }
+  .footer-links a:focus-visible {
+    outline: 3px dashed var(--ink);
+    outline-offset: 4px;
+  }
+
+  /* The cloud: a solid band with bobbing bubbles along its top edge */
+  .cloud {
+    position: relative;
+    height: 6rem;
+    background: var(--pill);
+  }
+  .cloud span {
+    position: absolute;
+    top: calc(var(--s) * -0.45);   /* bubbles poke up above the band as lumps */
+    left: var(--x);
+    width: var(--s);
+    height: var(--s);
+    margin-left: calc(var(--s) / -2);
+    background: var(--pill);
+    border-radius: 50%;
+    animation: bob var(--t, 6s) ease-in-out infinite alternate;
+    animation-delay: var(--d, 0s);
+  }
+  @keyframes bob {
+    from { transform: translateY(0.5rem); }
+    to   { transform: translateY(-0.6rem); }
+  }
+
+  /* Solid base: same color, no filter, carries the cloud all the way to the bottom */
+  .footer-base {
+    position: relative;
+    margin-top: -3rem;        /* overlaps the cloud so there's no seam */
+    padding: 3.5rem 1rem 2.5rem;
+    background: var(--pill);
+  }
+  .footer-note {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 600px) {
+    :root { --pull: 0.5rem; --drop: 0.6rem; }
+    .menu a { padding: 0.6rem 0.8rem; font-size: 1.05rem; }
+    .search.is-open { width: 11rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root { --speed: 0s; --footer-speed: 0s; }
+    .blob-shape, .intro h1 { animation: none; }
+    .page-bubbles a { opacity: 1; scale: 1; transition: none; }
+    .cloud span { animation: none; }
+  }
+</style>
+
+<!-- The "goo" filter: blurs shapes together, then sharpens the edges,
+     then draws the crisp original back on top so the text stays sharp -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+      <feColorMatrix in="blur" mode="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo" />
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+    </filter>
+  </defs>
+</svg>
+
+
+<main class="home" id="top">
+  <section class="intro">
+    <div class="blob-goo" aria-hidden="true">
+      <svg class="blob-shape" viewBox="0 0 1000 500" preserveAspectRatio="none" focusable="false">
+        <defs>
+          <linearGradient id="blobFill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--lilac-light)"/>
+            <stop offset="1" stop-color="var(--lilac-deep)"/>
+          </linearGradient>
+          <radialGradient id="blobShine" cx="0.28" cy="0.2" r="0.55">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path d="M0,203 C6,176 10,141 36,118 C63,95 115,68 161,63 C208,58 267,94 318,89 C368,83 410,43 464,28 C517,14 567,4 641,2 C714,0 848,-5 906,18 C964,41 974,101 990,139 C1005,177 1010,217 1000,245 C990,273 959,289 932,308 C905,327 859,340 839,361 C818,382 822,413 807,435 C793,457 786,484 750,493 C714,501 661,490 589,487 C516,485 391,481 318,477 C245,472 196,475 151,461 C106,447 72,423 47,392 C22,362 11,308 3,276 C-5,245 -6,229 0,203 Z" fill="url(#blobFill)"/>
+        <path d="M0,203 C6,176 10,141 36,118 C63,95 115,68 161,63 C208,58 267,94 318,89 C368,83 410,43 464,28 C517,14 567,4 641,2 C714,0 848,-5 906,18 C964,41 974,101 990,139 C1005,177 1010,217 1000,245 C990,273 959,289 932,308 C905,327 859,340 839,361 C818,382 822,413 807,435 C793,457 786,484 750,493 C714,501 661,490 589,487 C516,485 391,481 318,477 C245,472 196,475 151,461 C106,447 72,423 47,392 C22,362 11,308 3,276 C-5,245 -6,229 0,203 Z" fill="url(#blobShine)"/>
+      </svg>
+    </div>
+    <span class="note hi" aria-hidden="true">Hi! I'm</span>
+    <h1>Libby Egan</h1>
+    <p class="title"><span>Interactive and Experiential</span> <span>Producer &amp; Project Manager</span></p>
+    <span class="note welcome" aria-hidden="true">and welcome to my<br>portfolio!</span>
+  </section>
+
+  <nav aria-label="Pages">
+    <ul class="page-bubbles">
+      <li><a href="#" style="--a:#ebd3a2; --b:#c9a46c"><span class="name">Work</span><span class="sub">projects</span></a></li>
+      <li><a href="#" style="--a:#bce4e5; --b:#7fbcc2"><span class="name">About</span><span class="sub">who I am</span></a></li>
+      <li><a href="#" style="--a:#b5b1d8; --b:#8f89c4"><span class="name">Resume</span><span class="sub">experience</span></a></li>
+      <li><a href="#" style="--a:#f6c9a8; --b:#e5a07a"><span class="name">Contact</span><span class="sub">say hi</span></a></li>
+    </ul>
+  </nav>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-goo">
+    <nav aria-label="Footer">
+      <ul class="footer-links">
+        <li><a href="#">LinkedIn</a></li>
+        <li><a href="#">Email</a></li>
+        <li><a href="#">Resume</a></li>
+        <li><a href="#top">Back to top ↑</a></li>
+      </ul>
+    </nav>
+
+    <div class="cloud" aria-hidden="true">
+      <span style="--x:3%;  --s:6rem;   --t:5s;   --d:-1s"></span>
+      <span style="--x:12%; --s:8rem;   --t:7s;   --d:-3s"></span>
+      <span style="--x:22%; --s:6rem;   --t:6s;   --d:-2s"></span>
+      <span style="--x:32%; --s:5rem;   --t:8s;   --d:-5s"></span>
+      <span style="--x:50%; --s:4rem;   --t:5.5s; --d:-1.5s"></span>
+      <span style="--x:68%; --s:5rem;   --t:7.5s; --d:-4s"></span>
+      <span style="--x:78%; --s:6.5rem; --t:6.5s; --d:-2.5s"></span>
+      <span style="--x:88%; --s:8rem;   --t:8s;   --d:-6s"></span>
+      <span style="--x:97%; --s:6rem;   --t:6s;   --d:-3.5s"></span>
+    </div>
+  </div>
+
+  <div class="footer-base">
+    <p class="footer-note">© 2026 Libby Egan · Made in Brooklyn</p>
+  </div>
+</footer>
+
+<script>
+  // ---- Page circles pop in 0.5s after the page opens ----
+  const bubbleNav = document.querySelector('.page-bubbles');
+  setTimeout(() => bubbleNav.classList.add('is-in'), 500);
+</script>
